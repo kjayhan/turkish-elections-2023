@@ -1,0 +1,332 @@
+---
+title: "Visuzalization of 2023 Turkish Presidential Elections Results"
+author: "Kadir Jun Ayhan"
+format: html
+editor: visual
+echo: true
+code-fold: true
+warning: false
+categories:
+  - Türkiye
+  - map
+image: tea-coffee.png
+draft: false
+---
+
+**Disclaimer:** The data here are not official (YSK has not published the official results yet as of 18 May 2023), and may be inaccurate (most noticeably overseas votes are not included). The data is from this [link](https://github.com/liberbey/secim-resultslari/tree/main).
+
+More reliable unofficial results can be found [here](https://github.com/egeakman/2023-oveo-data), [here](https://tutanak.oyveotesi.org/), and [here](https://github.com/seckinu/turkey-2023-votes).
+
+**Note:** I updated Erdogan's (`rte`) and Kilicdaroglu's (`kk`) votes to `rte_2 = rte/rte+kk` and `kk_2 = kk/rte+kk` respectively.
+
+```{r}
+library(tidyverse)
+library(magrittr)
+library(TRmaps)
+library(sf)
+
+#devtools::install_github("htastan/TRmaps")
+
+# data from here: https://github.com/liberbey/secim-sonuclari/tree/main
+
+# Overseas data, and Samsun 19 Mayis data are missing.
+
+results_1 <- read.csv("secim_sonuclari_2023_2018.csv")
+
+results_1 %<>% filter(ilce != "19-May")
+
+results_1$rte[results_1$ilce == "19 Mayıs"] <- 74.4
+results_1$kk[results_1$ilce == "19 Mayıs"] <- 20.9
+results_1$rte_2018[results_1$ilce == "19 Mayıs"] <- 77
+results_1$gecerli_oy_sayisi_2018[results_1$ilce == "19 Mayıs"] <- 16540
+results_1$gecerli_oy_sayisi_2023[results_1$ilce == "19 Mayıs"] <- 17820
+
+
+# Function to convert Turkish characters to English equivalents
+convertTurkishCharacters <- function(text) {
+  text <- gsub("İ", "i", text)
+  text <- gsub("I", "i", text)
+  text <- gsub("Ü", "u", text)
+  text <- gsub("Ç", "c", text)
+  text <- gsub("Ş", "s", text)
+  text <- gsub("Ö", "o", text)
+  text <- gsub("Ğ", "g", text)
+  text <- tolower(text)
+  return(text)
+}
+
+# Apply the transformation to 'ilce' variable
+results_1$ilce2 <- convertTurkishCharacters(results_1$ilce)
+
+
+# Create 'il-ilce' variable by combining 'sehir' and updated 'ilce'
+results_1$il_ilce <- paste(results_1$sehir, results_1$ilce2, sep = "-")
+
+results_1$il_ilce <- toupper(results_1$il_ilce )
+
+
+results_1 %<>% mutate(
+  rte_2 = rte / (100 - so - mi),
+  kk_2 = kk / (100 - so - mi),
+  kk_wins = ifelse(kk_2 >= 0.5, "KK", "RTE"),
+  rte_diff = rte - rte_2018,
+  voter_no_diff = secmen_sayisi_2023 - secmen_sayisi_2018)
+
+rte_vote_2023 <- sum(results_1$rte*results_1$gecerli_oy_sayisi_2023/100, na.rm = TRUE) / sum(results_1$gecerli_oy_sayisi_2023, na.rm = TRUE) 
+
+#rte_vote_2023
+
+
+kk_vote_2023 <- sum(results_1$kk*results_1$gecerli_oy_sayisi_2023/100, na.rm = TRUE) / sum(results_1$gecerli_oy_sayisi_2023, na.rm = TRUE) 
+
+#kk_vote_2023
+
+```
+
+## Erdogan's Votes in 2023 (Round 1): Municipality-level
+
+```{r}
+
+data("tr_ilce")
+
+# joined_data <- tr_ilce %>%
+#   st_as_sf() %>%
+#   left_join(results_1, by = c("il_ilce_en_cap" = "il_ilce"))
+
+results_1_join <- tr_ilce %>% left_join(results_1, by = c("il_ilce_en_cap" = "il_ilce"))
+
+map_rte <- ggplot() +
+  geom_sf(data = results_1_join, color = "gray90", fill = "gray90") +
+  geom_sf(data = results_1_join, color = "black",  aes(fill = rte_2)) +
+  theme_void() +
+  theme(legend.position = "bottom",
+        legend.title = element_text(face = "bold")) +
+  #scale_x_continuous(expand = c(0, 0)) +
+  #viridis::scale_fill_viridis(discrete = TRUE, begin = 0.1, end = 0.65, option = "magma") +
+  coord_sf(crs = st_crs("ESRI:54030"))  +
+  labs(fill = "Erdogan Votes") +
+  colorspace::scale_fill_continuous_sequential(palette = "Oslo", trans = "reverse")
+
+map_rte
+
+ggsave("map_rte_ilce.jpg", map_rte, dpi =300)
+```
+
+## Erdogan's Votes in 2023 (Round 1): City-level
+
+```{r}
+
+data("tr_nuts3")
+
+tr_nuts3$name_eng <- tolower(tr_nuts3$name_eng)
+
+results_1_il <- results_1 %>% 
+  group_by(sehir) %>%
+  summarise(toplam_oy_2023 = sum(gecerli_oy_sayisi_2023, na.rm = T),
+            toplam_oy_2018 = sum(gecerli_oy_sayisi_2018, na.rm = T),
+            rte = sum(rte*gecerli_oy_sayisi_2023/ toplam_oy_2023, na.rm = T),
+            rte_2 = sum(rte_2*gecerli_oy_sayisi_2023/ toplam_oy_2023, na.rm = T),
+            rte_2018 = sum(rte_2018*gecerli_oy_sayisi_2018/ toplam_oy_2018, na.rm = T),
+            kk_2 = sum(kk_2*gecerli_oy_sayisi_2023/ toplam_oy_2023, na.rm = T))
+
+results_1_il %<>% 
+  mutate(kk_wins = ifelse(kk_2 >= 0.5, "KK", "RTE"),
+         rte_diff = rte - rte_2018)
+
+
+results_1_il_join <- tr_nuts3 %>% left_join(results_1_il, by = c("name_eng" = "sehir"))
+
+map_rte_il <- ggplot() +
+  geom_sf(data = results_1_il_join, color = "gray90", fill = "gray90") +
+  geom_sf(data = results_1_il_join, color = "black",  aes(fill = rte_2)) +
+  theme_void() +
+  theme(legend.position = "bottom",
+        legend.title = element_text(face = "bold")) +
+  #scale_x_continuous(expand = c(0, 0)) +
+  #viridis::scale_fill_viridis(discrete = TRUE, begin = 0.1, end = 0.65, option = "magma") +
+  coord_sf(crs = st_crs("ESRI:54030"))  +
+  labs(fill = "Erdogan Votes") +
+  colorspace::scale_fill_continuous_sequential(palette = "Oslo", trans = "reverse")
+
+map_rte_il
+
+
+ggsave("map_rte_il.jpg", map_rte_il, dpi =300)
+```
+
+## 
+
+## Kilicdaroglu's Votes in 2023 (Round 1): Municipality-level
+
+```{r}
+map_kk <- ggplot() +
+  geom_sf(data = results_1_join, color = "gray90", fill = "gray90") +
+  geom_sf(data = results_1_join, color = "black",  aes(fill = kk_2)) +
+  theme_void() +
+  theme(legend.position = "bottom",
+        legend.title = element_text(face = "bold")) +
+  #scale_x_continuous(expand = c(0, 0)) +
+  #viridis::scale_fill_viridis(discrete = TRUE, begin = 0.1, end = 0.65, option = "magma") +
+  coord_sf(crs = st_crs("ESRI:54030"))  +
+  labs(fill = "Kilicdaroglu Votes") +
+  colorspace::scale_fill_continuous_sequential(palette = "Reds")
+
+map_kk
+
+
+ggsave("map_kk_ilce.jpg", map_kk, dpi =300)
+```
+
+## Kilicdaroglu's Votes in 2023 (Round 1): City-level
+
+```{r}
+
+map_kk_il <- ggplot() +
+  geom_sf(data = results_1_il_join, color = "gray90", fill = "gray90") +
+  geom_sf(data = results_1_il_join, color = "black",  aes(fill = kk_2)) +
+  theme_void() +
+  theme(legend.position = "bottom",
+        legend.title = element_text(face = "bold")) +
+  #scale_x_continuous(expand = c(0, 0)) +
+  #viridis::scale_fill_viridis(discrete = TRUE, begin = 0.1, end = 0.65, option = "magma") +
+  coord_sf(crs = st_crs("ESRI:54030"))  +
+  labs(fill = "Kilicdaroglu Votes") +
+  colorspace::scale_fill_continuous_sequential(palette = "Reds")
+
+map_kk_il
+
+
+ggsave("map_kk_il.jpg", map_kk_il, dpi = 300)
+```
+
+## Who has more votes in each municipality in 2023 (Round 1): Municipality-level
+
+```{r}
+results_filtered <- results_1_join[!is.na(results_1_join$kk_wins), ]
+
+# Plot the map with the filtered data
+map_who <- ggplot() +
+  geom_sf(data = results_1_join, color = "gray90", fill = "gray90") +
+  geom_sf(data = results_filtered, color = "black", aes(fill = kk_wins)) +
+  theme_void() +
+  theme(legend.position = "bottom",
+        legend.title = element_text(face = "bold")) +
+  coord_sf(crs = st_crs("ESRI:54030")) +
+  labs(fill = "Who wins (2 candidates)") +
+  scale_fill_discrete(drop = FALSE, na.value = "transparent")
+
+map_who
+
+ggsave("map_who_ilce.jpg", map_who, dpi = 300)
+
+```
+
+## Who has more votes in each city in 2023 (Round 1): City-level
+
+```{r}
+results_il_filtered <- results_1_il_join[!is.na(results_1_il_join$kk_wins), ]
+
+# Plot the map with the filtered data
+map_who_il <- ggplot() +
+  geom_sf(data = results_1_il_join, color = "gray90", fill = "gray90") +
+  geom_sf(data = results_il_filtered, color = "black", aes(fill = kk_wins)) +
+  theme_void() +
+  theme(legend.position = "bottom",
+        legend.title = element_text(face = "bold")) +
+  coord_sf(crs = st_crs("ESRI:54030")) +
+  labs(fill = "Who wins (2 candidates)") +
+  scale_fill_discrete(drop = FALSE, na.value = "transparent")
+
+map_who_il
+
+ggsave("map_who_il.jpg", map_who_il, dpi = 300)
+
+```
+
+## How much did Erdogan's votes change from 2018 to 2023 (first round)? Municipality-level
+
+```{r}
+map_rte_diff <- ggplot() +
+  geom_sf(data = results_1_join, color = "gray90", fill = "gray90") +
+  geom_sf(data = results_1_join, color = "black",  aes(fill = rte_diff)) +
+  theme_void() +
+  theme(legend.position = "bottom",
+        legend.title = element_text(face = "bold")) +
+  #scale_x_continuous(expand = c(0, 0)) +
+  #viridis::scale_fill_viridis(discrete = TRUE, begin = 0.1, end = 0.65, option = "magma") +
+  coord_sf(crs = st_crs("ESRI:54030"))  +
+  labs(fill = "Erdogan Vote Difference (2023-2018)") +
+  colorspace::scale_fill_continuous_sequential(palette = "SunsetDark")
+
+map_rte_diff
+
+ggsave("map_rte_diff_ilce.jpg", map_rte_diff, dpi = 300)
+```
+
+## How much did Erdogan's votes change from 2018 to 2023 (first round)? City-level
+
+```{r}
+map_rte_diff_il <- ggplot() +
+  geom_sf(data = results_1_il_join, color = "gray90", fill = "gray90") +
+  geom_sf(data = results_1_il_join, color = "black",  aes(fill = rte_diff)) +
+  theme_void() +
+  theme(legend.position = "bottom",
+        legend.title = element_text(face = "bold")) +
+  #scale_x_continuous(expand = c(0, 0)) +
+  #viridis::scale_fill_viridis(discrete = TRUE, begin = 0.1, end = 0.65, option = "magma") +
+  coord_sf(crs = st_crs("ESRI:54030"))  +
+  labs(fill = "Erdogan Vote Difference (2023-2018)") +
+  colorspace::scale_fill_continuous_sequential(palette = "SunsetDark")
+
+map_rte_diff_il
+
+ggsave("map_rte_diff_il.jpg", map_rte_diff_il, dpi = 300)
+```
+
+## Erdogan's votes in 2018 and 2023 (Round 1): Municipality-level
+
+```{r}
+rte_compare <- results_1_join %>% select(rte, rte_2018, il_ilce)
+
+rte_compare %<>% rename(rte_2023 = rte)
+
+#rte_compare %<>% mutate(diff = rte_2023 - rte_2018)
+#rte_compare_pivot <- rte_compare  %>% pivot_longer(1:2, names_to = "year", values_to = "vote") 
+#rte_compare_pivot$year <- readr::parse_number(rte_compare_pivot$year)
+
+rte_compare %>% ggplot(aes(rte_2018, rte_2023)) +
+  geom_point()
+
+```
+
+## Erdogan's votes in 2018 and 2023 (Round 1): City-level
+
+```{r}
+rte_compare_il <- results_1_il_join %>% select(rte, rte_2018, name_eng)
+
+rte_compare_il %<>% rename(rte_2023 = rte)
+
+#rte_compare_il %<>% mutate(diff = rte_2023 - rte_2018)
+#rte_compare_il_pivot <- rte_compare_il  %>% pivot_longer(1:2, names_to = "year", values_to = "vote") 
+#rte_compare_il_pivot$year <- readr::parse_number(rte_compare_il_pivot$year)
+
+
+rte_compare_il %>% ggplot(aes(rte_2018, rte_2023)) +
+  geom_point()
+
+```
+
+## Just a fun pic to look at
+
+In the first figure, you have tea vs. coffee-related search trends on Google in Türkiye from 2004 until 2023 (although in recent years coffee preference seems to be increasing.) [Red]{style="color: red"} means more coffee searches, while [blue]{style="color: blue"} means more tea searches.
+
+::: {#fig-coffee-election layout-ncol=2}
+
+![Coffee vs. Tea](tea-coffee.png){#fig-coffee}
+
+![2023 Presidential Election](map_who_il.jpg){#fig-prez-city}
+
+Coincidence?
+:::
+:::
+:::
