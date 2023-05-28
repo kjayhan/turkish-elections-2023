@@ -1,0 +1,55 @@
+---
+title: "Canli Sonuclar"
+author: "Kadir Jun Ayhan"
+format: html
+editor: visual
+---
+
+# Libraries
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(ggthemes)
+library(magrittr)
+```
+
+# Sonuclar
+
+```{r}
+df <- read.csv("data/AA_vs_ANKA.csv")
+
+df %<>% mutate(rte2 = RTE/(RTE+KK),
+               kk2 = KK/(RTE+KK)) %>%
+  select(-RTE, -KK)
+
+df2 <- tibble::tribble(
+  ~Ajans, ~Sandik, ~rte2, ~kk2, ~tur,
+  "AA", 10, NA, NA, 2,
+  "AA", 20, NA, NA, 2,
+  "ANKA", 10, NA, NA, 2,
+  "ANKA", 20, NA, NA, 2
+)
+
+df_new <- rbind(df, df2)
+
+
+df_new %>% 
+  ggplot(aes(x = Sandik)) +
+  geom_line(aes(y = kk2, color = "kk2"), linetype = "solid") +
+  geom_line(aes(y = rte2, color = "rte2"), linetype = "solid") +
+  #geom_text(aes(y = rte2, label = rte2), hjust = -0.2, vjust = -0.5, color = "blue") +
+  #geom_text(aes(y = kk2, label = kk2), hjust = -0.2, vjust = 1, color = "red") +
+  facet_wrap(vars(Ajans, tur)) +
+  labs(x = "Acilan Sandik Orani
+  Not: Ilk turdaki diger adaylarin oylari dagitilmistir", y = "Oy orani", color = "Legend title") +
+  scale_color_manual(values = c("kk2" = "red", "rte2" = "blue"),
+                     labels = c("Kilicdaroglu", "Erdogan"),
+                     name = "Aday") +
+  theme(legend.position="bottom")  +
+  theme_economist()
+
+ggsave("live results/1.tur.jpg", dpi = 300)
+```
+
+# 

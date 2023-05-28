@@ -31,7 +31,7 @@ library(sf)
 
 # Overseas data, and Samsun 19 Mayis data are missing.
 
-results_1 <- read.csv("secim_sonuclari_2023_2018.csv")
+results_1 <- read.csv("data/secim_sonuclari_2023_2018.csv")
 
 results_1 %<>% filter(ilce != "19-May")
 
@@ -109,7 +109,7 @@ map_rte <- ggplot() +
 
 map_rte
 
-ggsave("map_rte_ilce.jpg", map_rte, dpi =300)
+ggsave("1st round visuals/"1st round visuals/map_rte_ilce.jpg", map_rte, dpi =300)
 ```
 
 ## Erdogan's Votes in 2023 (Round 1): City-level
@@ -151,7 +151,7 @@ map_rte_il <- ggplot() +
 map_rte_il
 
 
-ggsave("map_rte_il.jpg", map_rte_il, dpi =300)
+ggsave("1st round visuals/map_rte_il.jpg", map_rte_il, dpi =300)
 ```
 
 ## 
@@ -174,7 +174,7 @@ map_kk <- ggplot() +
 map_kk
 
 
-ggsave("map_kk_ilce.jpg", map_kk, dpi =300)
+ggsave("1st round visuals/"map_kk_ilce.jpg", map_kk, dpi =300)
 ```
 
 ## Kilicdaroglu's Votes in 2023 (Round 1): City-level
@@ -196,7 +196,7 @@ map_kk_il <- ggplot() +
 map_kk_il
 
 
-ggsave("map_kk_il.jpg", map_kk_il, dpi = 300)
+ggsave("1st round visuals/"map_kk_il.jpg", map_kk_il, dpi = 300)
 ```
 
 ## Who has more votes in each municipality in 2023 (Round 1): Municipality-level
@@ -217,7 +217,7 @@ map_who <- ggplot() +
 
 map_who
 
-ggsave("map_who_ilce.jpg", map_who, dpi = 300)
+ggsave("1st round visuals/"map_who_ilce.jpg", map_who, dpi = 300)
 
 ```
 
@@ -239,7 +239,7 @@ map_who_il <- ggplot() +
 
 map_who_il
 
-ggsave("map_who_il.jpg", map_who_il, dpi = 300)
+ggsave("1st round visuals/"map_who_il.jpg", map_who_il, dpi = 300)
 
 ```
 
@@ -260,7 +260,7 @@ map_rte_diff <- ggplot() +
 
 map_rte_diff
 
-ggsave("map_rte_diff_ilce.jpg", map_rte_diff, dpi = 300)
+ggsave("1st round visuals/"map_rte_diff_ilce.jpg", map_rte_diff, dpi = 300)
 ```
 
 ## How much did Erdogan's votes change from 2018 to 2023 (first round)? City-level
@@ -280,7 +280,7 @@ map_rte_diff_il <- ggplot() +
 
 map_rte_diff_il
 
-ggsave("map_rte_diff_il.jpg", map_rte_diff_il, dpi = 300)
+ggsave("1st round visuals/"map_rte_diff_il.jpg", map_rte_diff_il, dpi = 300)
 ```
 
 ## Erdogan's votes in 2018 and 2023 (Round 1): Municipality-level
@@ -320,13 +320,12 @@ rte_compare_il %>% ggplot(aes(rte_2018, rte_2023)) +
 
 In the first figure, you have tea vs. coffee-related search trends on Google in Türkiye from 2004 until 2023 (although in recent years coffee preference seems to be increasing.) [Red]{style="color: red"} means more coffee searches, while [blue]{style="color: blue"} means more tea searches.
 
-::: {#fig-coffee-election layout-ncol=2}
-
+::: {#fig-coffee-election layout-ncol="2"}
 ![Coffee vs. Tea](tea-coffee.png){#fig-coffee}
 
 ![2023 Presidential Election](map_who_il.jpg){#fig-prez-city}
 
 Coincidence?
 :::
-:::
-:::
+
+::: :::
